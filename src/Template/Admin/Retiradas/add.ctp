@@ -10,12 +10,33 @@
     <?= $this->Form->create($retirada) ?>
     <fieldset>
         <legend><?= 'Cadastro de Doação' ?></legend>
+
+        <!--Inicio DateList-->
+        <label for="paciente" class="form-label">Paciente</label>
+            <input class="form-control" list="pacienteOptions" id="paciente" name="paciente_nome" placeholder="Digite para buscar..." oninput="updateHiddenInput(this.value)">
+            <input type="hidden" name="id_pacientes" id="pacienteId">
+
+            <datalist id="pacienteOptions">
+                <?php foreach ($pacientes as $pacienteId => $pacienteNome): ?>
+                    <option value="<?= h($pacienteNome) ?>" data-id="<?= $pacienteId ?>">
+                <?php endforeach; ?>
+            </datalist>
+
+            <script>
+            function updateHiddenInput(value) {
+                const options = document.querySelectorAll('#pacienteOptions option');
+                for (let option of options) {
+                    if (option.value === value) {
+                        document.getElementById('pacienteId').value = option.getAttribute('data-id');
+                        return;
+                    }
+                }
+                document.getElementById('pacienteId').value = ''; // Limpa se não houver correspondência
+            }
+            </script>
+        <!--Fim DateList-->
+
         <?php
-            echo $this->Form->input('id_pacientes', [
-                'options' => $pacientes,
-                'label' => 'Paciente',
-                'empty' => 'Selecione um paciente',
-            ]);
             echo $this->Form->input('id_lotes', [
                 'options' => $lotes,
                 'label' => 'Lotes',

@@ -49,82 +49,10 @@ class RetiradasController extends AppController
      */
 
     public function add()
-{
-    $retirada = $this->Retiradas->newEntity();
-    // Obter a data atual
-    $hoje = new DateTime();
-
-    if ($this->request->is('post')) {
-        $retirada = $this->Retiradas->patchEntity($retirada, $this->request->data());
-
-        // Obter a quantidade do lote atual
-        $lote = $this->Retiradas->Lotes->get($retirada->id_lotes);
-        $qtdeLoteAtual = $lote->qdte;
-
-        // Verificar se a quantidade a ser retirada é válida
-        if ($retirada->qtde > $qtdeLoteAtual) {
-            $this->Flash->error(__('Quantidade de retirada maior que a quantidade disponível no lote.'));
-        } else {
-            // Subtrair a quantidade retirada do lote
-            $novaQtdeLote = $qtdeLoteAtual - $retirada->qtde;
-            $lote->qdte = $novaQtdeLote;
-
-            // Iniciar uma transação
-            $connection = ConnectionManager::get('default');
-            $connection->begin();
-
-            try {
-                // Salvar a retirada
-                $this->Retiradas->save($retirada);
-
-                // Atualizar a quantidade do lote
-                $this->Retiradas->Lotes->save($lote);
-
-                // Commit da transação
-                $connection->commit();
-
-                $this->Flash->success(__('Retirada salva com sucesso. A quantidade do lote foi atualizada.'));
-                return $this->redirect(['action' => 'index']);
-            } catch (\Exception $e) {
-                // Rollback em caso de erro
-                $connection->rollback();
-                $this->Flash->error(__('Erro ao salvar a retirada. Por favor, tente novamente.'));
-            }
-        }
-    }
-
-    // Carregar os lotes para a caixa de seleção com informações adicionais
-    $lotes = $this->Retiradas->Lotes
-        ->find('list', [
-            'conditions' => ['dataVencimento >=' => $hoje->format('Y-m-d H:i:s')],
-            'limit' => 200,
-        ])
-        ->contain(['Medicamentos']);
-
-    $users = $this->Retiradas->Users->find('list', ['limit' => 200]);
-    $pacientes = $this->Retiradas->Pacientes->find('list', ['limit' => 200]);
-
-    $this->set(compact('retirada', 'users', 'lotes', 'pacientes'));
-    $this->set('_serialize', ['retirada']);
-}
-
-
-    public function doar($id_lote = null)
     {
-
         $retirada = $this->Retiradas->newEntity();
         // Obter a data atual
         $hoje = new DateTime();
-
-        if ($id_lote !== null) {
-            // Define o valor padrão para o campo id_lotes
-            $retirada->id_lotes = $id_lote;
-        }
-
-        // Obtém os dados necessários para preencher o formulário
-        $pacientes = $this->Retiradas->Pacientes->find('list')->toArray();
-        $lotes = $this->Retiradas->Lotes->find('list')->toArray();
-        
 
         if ($this->request->is('post')) {
             $retirada = $this->Retiradas->patchEntity($retirada, $this->request->data());
@@ -132,8 +60,6 @@ class RetiradasController extends AppController
             // Obter a quantidade do lote atual
             $lote = $this->Retiradas->Lotes->get($retirada->id_lotes);
             $qtdeLoteAtual = $lote->qdte;
-
-            debug($lote->dataVencimento);
 
             // Verificar se a quantidade a ser retirada é válida
             if ($retirada->qtde > $qtdeLoteAtual) {
@@ -167,17 +93,93 @@ class RetiradasController extends AppController
             }
         }
 
-        $users = $this->Retiradas->Users->find('list', ['limit' => 200]);
+        // Carregar os lotes para a caixa de seleção com informações adicionais
         $lotes = $this->Retiradas->Lotes
-        ->find('list', [
-            'conditions' => ['dataVencimento >=' => $hoje->format('Y-m-d H:i:s')],
-            'limit' => 200,
-        ]);
+            ->find('list', [
+                'conditions' => ['dataVencimento >=' => $hoje->format('Y-m-d H:i:s')],
+                'limit' => 200,
+            ])
+            ->contain(['Medicamentos']);
+
+        $users = $this->Retiradas->Users->find('list', ['limit' => 200]);
         $pacientes = $this->Retiradas->Pacientes->find('list', ['limit' => 200]);
 
-        $this->set(compact('retirada', 'users', 'lotes', 'pacientes','id_lote'));
+        $this->set(compact('retirada', 'users', 'lotes', 'pacientes'));
         $this->set('_serialize', ['retirada']);
     }
+
+    public function doar($id_lote = null)
+    {
+        $retirada = $this->Retiradas->newEntity();
+        $hoje = new DateTime();
+
+        if ($id_lote !== null) {
+            $retirada->id_lotes = $id_lote;
+        }
+
+        // Obtém os dados necessários para preencher o formulário
+        $pacientes = $this->Retiradas->Pacientes->find('list')->toArray();
+        $lotes = $this->Retiradas->Lotes->find('list')->toArray();
+
+        if ($this->request->is('post')) {
+            // Corrigido para usar $this->request->data
+            $retirada = $this->Retiradas->patchEntity($retirada, $this->request->data);
+
+            // Debug para verificar os dados recebidos
+            //debug($this->request->data);
+
+            // Obter a quantidade do lote atual
+            $lote = $this->Retiradas->Lotes->get($retirada->id_lotes);
+            $qtdeLoteAtual = $lote->qdte;
+
+            // Verificar se a quantidade a ser retirada é válida
+            if ($retirada->qtde > $qtdeLoteAtual) {
+                $this->Flash->error(__('Quantidade de retirada maior que a quantidade disponível no lote.'));
+            } else {
+                // Subtrair a quantidade retirada do lote
+                $novaQtdeLote = $qtdeLoteAtual - $retirada->qtde;
+                $lote->qdte = $novaQtdeLote;
+
+                // Iniciar uma transação
+                $connection = ConnectionManager::get('default');
+                $connection->begin();
+
+                try {
+                    // Salvar a retirada
+                    if ($this->Retiradas->save($retirada)) {
+                        // Atualizar a quantidade do lote
+                        $this->Retiradas->Lotes->save($lote);
+
+                        // Commit da transação
+                        $connection->commit();
+
+                        $this->Flash->success(__('Retirada salva com sucesso. A quantidade do lote foi atualizada.'));
+                        return $this->redirect(['action' => 'index']);
+                    } else {
+                        // Debug para verificar erros de validação
+                        debug($retirada);
+                        throw new \Exception('Erro ao salvar a retirada.');
+                    }
+                } catch (\Exception $e) {
+                    // Rollback em caso de erro
+                    $connection->rollback();
+                    $this->Flash->error(__('Erro ao salvar a retirada. Por favor, tente novamente.'));
+                }
+            }
+        }
+
+        $users = $this->Retiradas->Users->find('list', ['limit' => 200]);
+        $lotes = $this->Retiradas->Lotes
+            ->find('list', [
+                'conditions' => ['dataVencimento >=' => $hoje->format('Y-m-d H:i:s')],
+                'limit' => 200,
+            ]);
+        $pacientes = $this->Retiradas->Pacientes->find('list', ['limit' => 200]);
+
+        $this->set(compact('retirada', 'users', 'lotes', 'pacientes', 'id_lote'));
+        $this->set('_serialize', ['retirada']);
+    }
+
 
 
     /**
